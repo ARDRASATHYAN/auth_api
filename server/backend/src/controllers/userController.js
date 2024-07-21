@@ -38,21 +38,104 @@ exports.login=async(req,res,next)=>{
         return res.status(500).json({ message: "ERROR", cause: error.message });
     }
 }
-
+//forgetpassword
 exports.ForgetPassword=async(req,res,next)=>{
-    try{
-        const {email}=req.body;
-        const olduser=await userModel.findOne({email});
-        if(!olduser){
-            return res.status(401).json({ message:'User not found'});
+    try {
+        const { email } = req.body;
+        const oldUser = await userModel.findOne({ email });
+        if (!oldUser) {
+            return res.status(401).json({ message: 'User not found' });
         }
-        const secret =process.env.JWT_SECRET +olduser.password;
-        const token= jwt.sign({email:olduser.email,id:olduser._id},secret,{
-            expiresIn:'5m'
+        
+        const secret = process.env.JWT_SECRET + oldUser.password;
+        const token = jwt.sign({ email: oldUser.email, id: oldUser._id }, secret, {
+            expiresIn: '5m'
         });
-        const link =`http://localhost:5000/<route_name>/${olduser._id}/${token}`
+        const link = `http://localhost:5000/user/reset-password/${oldUser._id}/${token}`;
         console.log(link);
-    }catch(error){
 
+        // // Setup Nodemailer transporter
+        // let transporter = nodemailer.createTransport({
+        //     service: 'gmail', // Use any service you prefer
+        //     auth: {
+        //         user: process.env.EMAIL_USER, // Your email id
+        //         pass: process.env.EMAIL_PASS // Your email password
+        //     }
+        // });
+
+        // // Setup email options
+        // let mailOptions = {
+        //     from: process.env.EMAIL_USER,
+        //     to: oldUser.email, // Send email to the oldUser's email
+        //     subject: 'Password Reset',
+        //     text: `Click on the following link to reset your password: ${link}`
+        // };
+
+        // // Send email
+        // transporter.sendMail(mailOptions, (error, info) => {
+        //     if (error) {
+        //         return res.status(500).json({ message: 'Error sending email' });
+        //     }
+        //     res.status(200).json({ message: 'Password reset link sent to your email' });
+        // });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Something went wrong' });
+    }
+}
+//verify the user's identity 
+exports.verifyuser=async(req,res,next)=>{
+    try {
+        const { id, token } = req.params;
+        console.log(req.params);
+        const oldUser = await userModel.findOne({ _id: id });
+        if (!oldUser) {
+            return res.json({ status: "User Not Exists!!" });
+        }
+        const secret = process.env.JWT_SECRET + oldUser.password;
+        try {
+            const verify = jwt.verify(token, secret);
+            res.render("index", { email: verify.email, status: "Not Verified" });
+        } catch (error) {
+            console.log(error);
+            res.send("Not Verified");
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(500).send("Something went wrong");
+    }
+}
+
+exports.Resetpassword=async(req,res,next)=>{
+    try{
+        const { id, token } = req.params;
+        const { password } = req.body;
+      
+        const oldUser = await userModel.findOne({ _id: id });
+        if (!oldUser) {
+          return res.json({ status: "User Not Exists!!" });
+        }
+        const secret = process.env.JWT_SECRET + oldUser.password;
+        try {
+          const verify = jwt.verify(token, secret);
+          const encryptedPassword = await hash(password, 10);
+          await userModel.updateOne(
+            {
+              _id: id,
+            },
+            {
+              $set: {
+                password: encryptedPassword,
+              },
+            }
+          );
+      
+          res.render("index", { email: verify.email, status: "verified" });
+        } catch (error) {
+          console.log(error);
+          res.json({ status: "Something Went Wrong" });
+        }
+    }catch(error){
+        
     }
 }

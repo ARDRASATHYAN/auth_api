@@ -44,7 +44,7 @@ exports.ForgetPassword=async(req,res,next)=>{
         const {email}=req.body;
         const olduser=await userModel.findOne({email});
         if(!olduser){
-            return res.send("user not exists!!");
+            return res.status(401).json({ message:'User not found'});
         }
         const secret =process.env.JWT_SECRET +olduser.password;
         const token= jwt.sign({email:olduser.email,id:olduser._id},secret,{

@@ -38,3 +38,21 @@ exports.login=async(req,res,next)=>{
         return res.status(500).json({ message: "ERROR", cause: error.message });
     }
 }
+
+exports.ForgetPassword=async(req,res,next)=>{
+    try{
+        const {email}=req.body;
+        const olduser=await userModel.findOne({email});
+        if(!olduser){
+            return res.send("user not exists!!");
+        }
+        const secret =process.env.JWT_SECRET +olduser.password;
+        const token= jwt.sign({email:olduser.email,id:olduser._id},secret,{
+            expiresIn:'5m'
+        });
+        const link =`http://localhost:5000/<route_name>/${olduser._id}/${token}`
+        console.log(link);
+    }catch(error){
+
+    }
+}

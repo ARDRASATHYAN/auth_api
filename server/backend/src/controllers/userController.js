@@ -1,6 +1,7 @@
 const { hash, compare } = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const userModel = require('../models/userModel');
+const nodemailer = require('nodemailer');
 
 
 //register
@@ -52,36 +53,31 @@ exports.ForgetPassword=async(req,res,next)=>{
             expiresIn: '5m'
         });
         const link = `http://localhost:5000/user/reset-password/${oldUser._id}/${token}`;
-        console.log(link);
-
-        // // Setup Nodemailer transporter
-        // let transporter = nodemailer.createTransport({
-        //     service: 'gmail', // Use any service you prefer
-        //     auth: {
-        //         user: process.env.EMAIL_USER, // Your email id
-        //         pass: process.env.EMAIL_PASS // Your email password
-        //     }
-        // });
-
-        // // Setup email options
-        // let mailOptions = {
-        //     from: process.env.EMAIL_USER,
-        //     to: oldUser.email, // Send email to the oldUser's email
-        //     subject: 'Password Reset',
-        //     text: `Click on the following link to reset your password: ${link}`
-        // };
-
-        // // Send email
-        // transporter.sendMail(mailOptions, (error, info) => {
-        //     if (error) {
-        //         return res.status(500).json({ message: 'Error sending email' });
-        //     }
-        //     res.status(200).json({ message: 'Password reset link sent to your email' });
-        // });
-
-    } catch (error) {
-        res.status(500).json({ message: 'Something went wrong' });
-    }
+       
+        var transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.EMAIL_USER, // Your email id
+                pass: process.env.EMAIL_PASS // Your email password
+            },
+          });
+      
+          var mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: oldUser.email,
+            subject: "Password Reset",
+            text: link,
+          };
+      
+          transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+              console.log(error);
+            } else {
+              console.log("Email sent: " + info.response);
+            }
+          });
+          console.log(link);
+        } catch (error) {}
 }
 //verify the user's identity 
 exports.verifyuser=async(req,res,next)=>{
@@ -100,42 +96,50 @@ exports.verifyuser=async(req,res,next)=>{
             console.log(error);
             res.send("Not Verified");
         }
+        
     } catch (error) {
         console.log(error);
         res.status(500).send("Something went wrong");
     }
 }
 
-exports.Resetpassword=async(req,res,next)=>{
-    try{
-        const { id, token } = req.params;
-        const { password } = req.body;
-      
-        const oldUser = await userModel.findOne({ _id: id });
-        if (!oldUser) {
+exports.Resetpassword = async (req, res, next) => {
+  try {
+      const { id, token } = req.params;
+      const { password } = req.body;
+      console.log('Password:', password); // Debugging line
+
+      if (!password) {
+          return res.json({ status: "Password is required!" });
+      }
+
+      const oldUser = await userModel.findOne({ _id: id });
+      if (!oldUser) {
           return res.json({ status: "User Not Exists!!" });
-        }
-        const secret = process.env.JWT_SECRET + oldUser.password;
-        try {
+      }
+
+      const secret = process.env.JWT_SECRET + oldUser.password;
+      try {
           const verify = jwt.verify(token, secret);
           const encryptedPassword = await hash(password, 10);
           await userModel.updateOne(
-            {
-              _id: id,
-            },
-            {
-              $set: {
-                password: encryptedPassword,
+              {
+                  _id: id,
               },
-            }
+              {
+                  $set: {
+                      password: encryptedPassword,
+                  },
+              }
           );
-      
+
           res.render("index", { email: verify.email, status: "verified" });
-        } catch (error) {
+      } catch (error) {
           console.log(error);
-          res.json({ status: "Something Went Wrong" });
-        }
-    }catch(error){
-        
-    }
-}
+          res.json({ status: "Went Wrong" });
+      }
+  } catch (error) {
+      console.log(error);
+      res.json({ status: "Internal Server Error" });
+  }
+};

@@ -12,7 +12,7 @@ app.use(cors());
 
 // Set the view engine to EJS
 app.set('view engine', 'ejs');
-
+app.use(express.urlencoded({ extended: true })); 
 
 const PORT = process.env.PORT || 5000;
 
